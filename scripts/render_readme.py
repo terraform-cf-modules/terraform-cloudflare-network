@@ -313,6 +313,85 @@ def render(cfg: dict) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
+
+def render_llms(cfg: dict) -> str:
+    """Compact machine index for LLMs, llmstxt.org convention."""
+    repo = cfg.get("github_repo", "")
+    name = cfg.get("name", "Terraform Module")
+    registry = cfg.get("registry_address") or ""
+    if not registry and repo.startswith("terraform-cf-modules/terraform-cloudflare-"):
+        registry = (
+            "terraform-cf-modules/"
+            + repo.split("terraform-cloudflare-", 1)[1]
+            + "/cloudflare"
+        )
+
+    about = (cfg.get("about") or cfg.get("intro") or "").strip()
+    out = [
+        f"# {name}",
+        "",
+        f"> {about}",
+        "",
+        f"Terraform module for Cloudflare, maintained by CloudDrove. "
+        f"Source: `{registry}`. Repository: https://github.com/{repo}",
+        "",
+        "Requires Terraform >= 1.12.0 (or OpenTofu >= 1.12) and the "
+        "`cloudflare/cloudflare` provider ~> 5.24. Provider v5 renamed most "
+        "resources from v4, so verify resource names against the current "
+        "provider docs rather than older examples.",
+        "",
+        "## Usage",
+        "",
+        "```hcl",
+        'module "this" {',
+        f'  source  = "{registry}"',
+        '  version = "~> 0.1"',
+        "}",
+        "```",
+        "",
+    ]
+
+    mod_dir = os.path.join(ROOT, "modules")
+    subs = []
+    if os.path.isdir(mod_dir):
+        subs = sorted(
+            d for d in os.listdir(mod_dir)
+            if os.path.isdir(os.path.join(mod_dir, d))
+        )
+    if subs:
+        out += [
+            "## Submodules",
+            "",
+            "Each is separately addressable with the double slash source syntax.",
+            "",
+        ]
+        for sname in subs:
+            out.append(
+                f"- [{sname}](https://github.com/{repo}/tree/main/modules/{sname}): "
+                f"`{registry}//modules/{sname}`"
+            )
+        out.append("")
+
+    out += [
+        "## Documentation",
+        "",
+        f"- [README](https://github.com/{repo}/blob/main/README.md): overview and usage",
+        f"- [Inputs and outputs](https://github.com/{repo}/blob/main/docs/io.md): "
+        "every variable and output",
+        f"- [Examples](https://github.com/{repo}/tree/main/examples): runnable configurations",
+        f"- [Architecture](https://github.com/{repo}/blob/main/docs/architecture.md): "
+        "resource map and provider quirks",
+        "",
+        "## Related",
+        "",
+        "- [All CloudDrove modules](https://github.com/clouddrove/toc): every module and "
+        "submodule across AWS, Azure, Google Cloud, DigitalOcean, Hetzner Cloud and Cloudflare",
+        "- [Organisation](https://github.com/terraform-cf-modules): the Cloudflare module family",
+        "- [Terraform Registry](https://registry.terraform.io/namespaces/terraform-cf-modules)",
+    ]
+    return "\n".join(out).rstrip() + "\n"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="fail if README.md is stale")
@@ -322,18 +401,27 @@ def main() -> int:
     terraform_docs()
     body = render(cfg)
 
+    llms = render_llms(cfg)
     target = os.path.join(ROOT, "README.md")
+    llms_target = os.path.join(ROOT, "llms.txt")
+
     if args.check:
-        current = open(target).read() if os.path.exists(target) else ""
-        if current != body:
-            print("README.md is stale. Run `make readme`.", file=sys.stderr)
+        stale = []
+        for path, want in ((target, body), (llms_target, llms)):
+            have_now = open(path).read() if os.path.exists(path) else ""
+            if have_now != want:
+                stale.append(os.path.basename(path))
+        if stale:
+            print(f"Stale: {', '.join(stale)}. Run `make readme`.", file=sys.stderr)
             return 1
-        print("README.md is up to date.")
+        print("README.md and llms.txt are up to date.")
         return 0
 
     with open(target, "w") as fh:
         fh.write(body)
-    print(f"wrote {target}")
+    with open(llms_target, "w") as fh:
+        fh.write(llms)
+    print(f"wrote {target} and {llms_target}")
     return 0
 
 

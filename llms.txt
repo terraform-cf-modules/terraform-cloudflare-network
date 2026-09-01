@@ -1,0 +1,42 @@
+# Terraform Cloudflare Network
+
+> Load balancing, health monitors, Spectrum applications, Magic WAN, and Magic Transit.
+
+Terraform module for Cloudflare, maintained by CloudDrove. Source: `terraform-cf-modules/network/cloudflare`. Repository: https://github.com/terraform-cf-modules/terraform-cloudflare-network
+
+Requires Terraform >= 1.12.0 (or OpenTofu >= 1.12) and the `cloudflare/cloudflare` provider ~> 5.24. Provider v5 renamed most resources from v4, so verify resource names against the current provider docs rather than older examples.
+
+## Usage
+
+```hcl
+module "this" {
+  source  = "terraform-cf-modules/network/cloudflare"
+  version = "~> 0.1"
+}
+```
+
+## Submodules
+
+Each is separately addressable with the double slash source syntax.
+
+- [addressing](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/addressing): `terraform-cf-modules/network/cloudflare//modules/addressing`
+- [load-balancer](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/load-balancer): `terraform-cf-modules/network/cloudflare//modules/load-balancer`
+- [magic-transit](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/magic-transit): `terraform-cf-modules/network/cloudflare//modules/magic-transit`
+- [magic-wan](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/magic-wan): `terraform-cf-modules/network/cloudflare//modules/magic-wan`
+- [monitor](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/monitor): `terraform-cf-modules/network/cloudflare//modules/monitor`
+- [monitoring](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/monitoring): `terraform-cf-modules/network/cloudflare//modules/monitoring`
+- [pool](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/pool): `terraform-cf-modules/network/cloudflare//modules/pool`
+- [spectrum](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/modules/spectrum): `terraform-cf-modules/network/cloudflare//modules/spectrum`
+
+## Documentation
+
+- [README](https://github.com/terraform-cf-modules/terraform-cloudflare-network/blob/main/README.md): overview and usage
+- [Inputs and outputs](https://github.com/terraform-cf-modules/terraform-cloudflare-network/blob/main/docs/io.md): every variable and output
+- [Examples](https://github.com/terraform-cf-modules/terraform-cloudflare-network/tree/main/examples): runnable configurations
+- [Architecture](https://github.com/terraform-cf-modules/terraform-cloudflare-network/blob/main/docs/architecture.md): resource map and provider quirks
+
+## Related
+
+- [All CloudDrove modules](https://github.com/clouddrove/toc): every module and submodule across AWS, Azure, Google Cloud, DigitalOcean, Hetzner Cloud and Cloudflare
+- [Organisation](https://github.com/terraform-cf-modules): the Cloudflare module family
+- [Terraform Registry](https://registry.terraform.io/namespaces/terraform-cf-modules)
