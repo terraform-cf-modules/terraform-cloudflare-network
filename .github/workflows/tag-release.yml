@@ -68,6 +68,81 @@ jobs:
           echo "tag=v$major.$minor.$patch" >> "$GITHUB_OUTPUT"
           echo "skip=false"            >> "$GITHUB_OUTPUT"
 
+      - name: Update CHANGELOG
+        if: steps.ver.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          PREV="${{ steps.ver.outputs.previous }}"
+          DATE=$(date -u +%Y-%m-%d)
+
+          if git rev-parse "$PREV" >/dev/null 2>&1; then
+            RANGE="$PREV..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          # Group commits by Conventional Commit type.
+          {
+            echo "## [$TAG](https://github.com/${{ github.repository }}/releases/tag/$TAG) - $DATE"
+            echo
+            for pair in "feat:Features" "fix:Bug Fixes" "perf:Performance" \
+                        "refactor:Refactoring" "docs:Documentation" "ci:CI"; do
+              type="${pair%%:*}"; heading="${pair#*:}"
+              body=$(git log --no-merges --pretty=format:'%s' $RANGE \
+                | grep -E "^${type}(\(.+\))?!?: " || true)
+              if [ -n "$body" ]; then
+                echo "### $heading"
+                echo
+                printf '%s\n' "$body" | sed -E "s/^${type}(\(.+\))?!?: /- /"
+                echo
+              fi
+            done
+            breaking=$(git log --no-merges --pretty=format:'%s' $RANGE \
+              | grep -E '^[a-z]+(\(.+\))?!: ' || true)
+            if [ -n "$breaking" ]; then
+              echo "### Breaking Changes"
+              echo
+              printf '%s\n' "$breaking" | sed -E 's/^[a-z]+(\(.+\))?!: /- /'
+              echo
+            fi
+          } > /tmp/entry.md
+
+          if [ ! -s /tmp/entry.md ] || [ "$(wc -l < /tmp/entry.md)" -le 2 ]; then
+            echo "## $TAG - $DATE"  > /tmp/entry.md
+            echo                   >> /tmp/entry.md
+            echo "Initial release." >> /tmp/entry.md
+            echo                   >> /tmp/entry.md
+          fi
+
+          HEADER="# Changelog"
+          {
+            echo "$HEADER"
+            echo
+            echo "All notable changes to this module are documented here."
+            echo "This project follows [Semantic Versioning](https://semver.org/) and"
+            echo "[Conventional Commits](https://www.conventionalcommits.org/)."
+            echo
+            cat /tmp/entry.md
+            if [ -f CHANGELOG.md ]; then
+              tail -n +2 CHANGELOG.md \
+                | sed '/^All notable changes to this module are documented here\.$/d' \
+                | sed '/^This file is generated from Conventional Commit/d' \
+                | sed '/^This project follows \[Semantic Versioning\]/d' \
+                | sed '/^\[Conventional Commits\]/d' \
+                | sed '/./,$!d'
+            fi
+          } > /tmp/CHANGELOG.md
+          mv /tmp/CHANGELOG.md CHANGELOG.md
+
+          git config user.name  "clouddrove-ci"
+          git config user.email "clouddrove-ci@clouddrove.com"
+          if ! git diff --quiet -- CHANGELOG.md; then
+            git add CHANGELOG.md
+            git commit -m "docs: update CHANGELOG for $TAG [skip ci]"
+            git push origin HEAD:${{ github.event.repository.default_branch }}
+          fi
+
       - name: Create tag and release
         if: steps.ver.outputs.skip == 'false'
         env:
