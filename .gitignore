@@ -1,0 +1,27 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfplan
+
+# Sensitive files, never commit
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

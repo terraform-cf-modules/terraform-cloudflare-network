@@ -1,0 +1,229 @@
+---
+#
+# This is the canonical configuration for `README.md`.
+# Run `make docs` for the terraform-docs block, the readme workflow rebuilds the rest.
+#
+
+name: Terraform Cloudflare Network
+
+intro: |-
+  With our comprehensive DevOps toolkit, streamline operations, automate workflows, enhance collaboration and deploy with confidence.
+
+badges_text: "Latest Release | License | Changelog"
+
+about: |-
+  Load balancing, health monitors, Spectrum applications, Magic WAN, and Magic Transit.
+
+license: "APACHE"
+
+github_repo: terraform-cf-modules/terraform-cloudflare-network
+
+badges:
+  - name: "Terraform"
+    image: "https://img.shields.io/badge/Terraform-v1.10.0-green"
+    url: "https://www.terraform.io"
+
+  - name: "Licence"
+    image: "https://img.shields.io/badge/License-APACHE-blue.svg"
+    url: "LICENSE"
+
+  - name: "Changelog"
+    image: "https://img.shields.io/badge/Changelog-blue"
+    url: "CHANGELOG.md"
+
+prerequisites:
+  - name: Terraform
+    url: https://learn.hashicorp.com/terraform/getting-started/install.html
+    version: ">= 1.10.0"
+
+  - name: OpenTofu
+    url: https://opentofu.org/docs/intro/install/
+    version: ">= 1.9.0"
+
+providers:
+  - name: cloudflare
+    url: https://registry.terraform.io/providers/cloudflare/cloudflare/latest
+    version: "~> 5.24"
+
+description: |-
+  Cloudflare's network layer: load balancing, health checking, Spectrum, the Magic products, and IP addressing.
+
+  The root module builds a working load balancer. It creates the monitors, then the pools that reference them,
+  then the load balancers that steer across those pools, resolving map keys to Cloudflare IDs along the way, so
+  you never hand write an ID that does not exist until apply.
+
+  Everything else is a standalone building block:
+
+  | Submodule | Resources |
+  |-----------|-----------|
+  | `monitor` | `cloudflare_load_balancer_monitor`, `cloudflare_load_balancer_monitor_group`, `cloudflare_healthcheck` |
+  | `pool` | `cloudflare_load_balancer_pool` |
+  | `load-balancer` | `cloudflare_load_balancer` |
+  | `spectrum` | `cloudflare_spectrum_application` |
+  | `magic-wan` | `cloudflare_magic_wan_gre_tunnel`, `cloudflare_magic_wan_ipsec_tunnel`, `cloudflare_magic_wan_static_route` |
+  | `magic-transit` | `cloudflare_magic_transit_connector`, `cloudflare_magic_transit_site`, `cloudflare_magic_transit_site_lan`, `cloudflare_magic_transit_site_wan`, `cloudflare_magic_transit_site_acl` |
+  | `addressing` | `cloudflare_byo_ip_prefix`, `cloudflare_address_map` |
+  | `monitoring` | `cloudflare_magic_network_monitoring_configuration`, `cloudflare_magic_network_monitoring_rule` |
+
+  Pools and monitors are account scoped; load balancers, health checks and Spectrum applications are zone scoped.
+  One pool can therefore back load balancers in several zones.
+
+  Magic WAN and Magic Transit are enterprise products that Cloudflare has to onboard an account for. Their
+  collections default to empty and `examples/complete` keeps them behind variables that default to `false`, so a
+  passing plan does not imply the products are available.
+
+  See [docs/architecture.md](docs/architecture.md) for the resource map, the steering table, and the provider
+  quirks worth knowing before you start.
+
+usage: |-
+  ### A working load balancer
+
+  The pool references the monitor by its map key, and the load balancer references the pool by its map key. The
+  module resolves both to Cloudflare IDs.
+
+  ```hcl
+  module "network" {
+    source  = "terraform-cf-modules/network/cloudflare"
+    version = "~> 0.1"
+
+    account_id = var.account_id
+    zone_id    = var.zone_id
+
+    monitors = {
+      http = {
+        type           = "http"
+        path           = "/healthz"
+        expected_codes = "2xx"
+        interval       = 60
+      }
+    }
+
+    pools = {
+      primary = {
+        monitor = "http"
+
+        origins = {
+          origin_a = { address = "192.0.2.10", weight = 1 }
+          origin_b = { address = "192.0.2.11", weight = 1 }
+        }
+      }
+    }
+
+    load_balancers = {
+      "www.example.com" = {
+        default_pools = ["primary"]
+        fallback_pool = "primary"
+        proxied       = true
+      }
+    }
+  }
+  ```
+
+  ### Geo steering across two regions
+
+  ```hcl
+  module "network" {
+    source  = "terraform-cf-modules/network/cloudflare"
+    version = "~> 0.1"
+
+    account_id = var.account_id
+    zone_id    = var.zone_id
+
+    monitors = {
+      http = { type = "http", path = "/healthz" }
+    }
+
+    pools = {
+      europe = {
+        monitor   = "http"
+        latitude  = 52.37
+        longitude = 4.89
+        origins   = { ams = { address = "192.0.2.10" } }
+      }
+
+      north_america = {
+        monitor   = "http"
+        latitude  = 37.77
+        longitude = -122.42
+        origins   = { sfo = { address = "192.0.2.20" } }
+      }
+    }
+
+    load_balancers = {
+      "www.example.com" = {
+        default_pools   = ["europe", "north_america"]
+        fallback_pool   = "north_america"
+        proxied         = true
+        steering_policy = "geo"
+
+        region_pools = {
+          WEU  = ["europe"]
+          ENAM = ["north_america"]
+        }
+
+        country_pools = {
+          GB = ["europe", "north_america"]
+        }
+
+        adaptive_routing = {
+          failover_across_pools = true
+        }
+      }
+    }
+  }
+  ```
+
+  ### Submodule
+
+  ```hcl
+  module "spectrum" {
+    source  = "terraform-cf-modules/network/cloudflare//modules/spectrum"
+    version = "~> 0.1"
+
+    zone_id = var.zone_id
+
+    applications = {
+      ssh = {
+        protocol      = "tcp/22"
+        dns           = { type = "CNAME", name = "ssh.example.com" }
+        origin_direct = ["tcp://192.0.2.10:22"]
+      }
+    }
+  }
+  ```
+
+  ### Wrapper for many zones
+
+  ```hcl
+  module "many" {
+    source = "terraform-cf-modules/network/cloudflare//wrappers"
+
+    defaults = {
+      account_id = var.account_id
+
+      monitors = {
+        http = { type = "http", path = "/healthz" }
+      }
+    }
+
+    items = {
+      example_com = {
+        zone_id = var.example_com_zone_id
+
+        pools = {
+          primary = {
+            monitor = "http"
+            origins = { a = { address = "192.0.2.10" } }
+          }
+        }
+
+        load_balancers = {
+          "www.example.com" = {
+            default_pools = ["primary"]
+            fallback_pool = "primary"
+          }
+        }
+      }
+    }
+  }
+  ```

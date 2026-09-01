@@ -1,0 +1,26 @@
+name: tf-checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  basic:
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/basic/'
+      provider: none
+
+  complete:
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/complete/'
+      provider: none
+
+  multi_zone_pools:
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/multi-zone-pools/'
+      provider: none

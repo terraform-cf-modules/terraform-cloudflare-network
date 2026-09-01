@@ -1,0 +1,9 @@
+name: pr-validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-checks:
+    uses: clouddrove/github-shared-workflows/.github/workflows/pr-checks.yml@v2

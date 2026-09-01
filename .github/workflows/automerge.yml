@@ -1,0 +1,12 @@
+name: automerge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+jobs:
+  automerge:
+    uses: clouddrove/github-shared-workflows/.github/workflows/pr-auto-merge.yml@v2
+    secrets:
+      GITHUB: ${{ secrets.GITHUB }}

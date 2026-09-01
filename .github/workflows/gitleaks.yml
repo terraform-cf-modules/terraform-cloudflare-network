@@ -1,0 +1,9 @@
+name: gitleaks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gitleaks:
+    uses: clouddrove/github-shared-workflows/.github/workflows/pr-gitleaks-scan.yml@v2

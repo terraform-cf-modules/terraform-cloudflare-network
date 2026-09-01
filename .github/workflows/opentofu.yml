@@ -1,0 +1,36 @@
+name: opentofu
+
+# No shared-workflow equivalent yet. Keeps OpenTofu compatibility honest.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: tofu validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ['.', './examples/basic', './examples/complete', './examples/multi-zone-pools', './wrappers']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+
+      - name: Format check
+        if: matrix.dir == '.'
+        run: tofu fmt -check -recursive -diff
+
+      - name: Init and validate
+        working-directory: ${{ matrix.dir }}
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate

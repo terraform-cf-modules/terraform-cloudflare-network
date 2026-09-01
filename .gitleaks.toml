@@ -1,0 +1,16 @@
+title = "terraform-cf-modules gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "cloudflare-api-token"
+description = "Cloudflare API token"
+regex = '''(?i)cloudflare[_\-\s]*api[_\-\s]*token['"\s:=]+[a-zA-Z0-9_-]{40}'''
+tags = ["cloudflare", "token"]
+
+[allowlist]
+paths = [
+  '''README\.md''',
+  '''docs/.*\.md''',
+]

@@ -1,0 +1,10 @@
+name: stale
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  stale:
+    uses: clouddrove/github-shared-workflows/.github/workflows/pr-stale.yml@v2

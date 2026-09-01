@@ -1,0 +1,7 @@
+quiet: true
+compact: true
+framework:
+  - terraform
+skip-path:
+  - .terraform
+skip-check: []

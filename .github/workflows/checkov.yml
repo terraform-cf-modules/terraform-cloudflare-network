@@ -1,0 +1,12 @@
+name: checkov
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checkov:
+    uses: clouddrove/github-shared-workflows/.github/workflows/security-checkov.yml@v2
+    with:
+      directory: './examples/complete/'
+      continue_on_error: 'true'

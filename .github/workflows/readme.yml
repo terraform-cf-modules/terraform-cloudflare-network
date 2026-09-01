@@ -1,0 +1,15 @@
+name: readme
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+  workflow_dispatch:
+
+jobs:
+  readme:
+    uses: clouddrove/github-shared-workflows/.github/workflows/readme.yml@v2
+    secrets:
+      TOKEN: ${{ secrets.GITHUB }}
+      SLACK_WEBHOOK_TERRAFORM: ${{ secrets.SLACK_WEBHOOK_TERRAFORM }}
