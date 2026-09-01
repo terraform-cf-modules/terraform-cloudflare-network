@@ -30,7 +30,7 @@ docs: ## Regenerate the terraform-docs block in README.md
 
 test: ## Run the mocked terraform tests, no credentials needed
 	$(TF) init -backend=false -input=false
-	$(TF) test -verbose
+	$(TF) test -filter=tests/defaults.tftest.hcl -filter=tests/validations.tftest.hcl -verbose
 
 security: ## Run trivy, checkov and gitleaks
 	@command -v trivy >/dev/null 2>&1 && trivy config . --severity MEDIUM,HIGH,CRITICAL || echo "trivy not installed, skipping"

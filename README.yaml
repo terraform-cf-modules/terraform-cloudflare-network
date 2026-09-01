@@ -20,7 +20,7 @@ github_repo: terraform-cf-modules/terraform-cloudflare-network
 
 badges:
   - name: "Terraform"
-    image: "https://img.shields.io/badge/Terraform-v1.10.0-green"
+    image: "https://img.shields.io/badge/Terraform-v1.12.0-green"
     url: "https://www.terraform.io"
 
   - name: "Licence"
@@ -34,11 +34,11 @@ badges:
 prerequisites:
   - name: Terraform
     url: https://learn.hashicorp.com/terraform/getting-started/install.html
-    version: ">= 1.10.0"
+    version: ">= 1.12.0"
 
   - name: OpenTofu
     url: https://opentofu.org/docs/intro/install/
-    version: ">= 1.9.0"
+    version: ">= 1.12.0"
 
 providers:
   - name: cloudflare

@@ -1,7 +1,6 @@
 # Plan only. Runs on every pull request, including forks, with no credentials.
 
 mock_provider "cloudflare" {
-  override_during = plan
 }
 
 variables {

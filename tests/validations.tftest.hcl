@@ -4,7 +4,6 @@
 # and names the variable that must reject it.
 
 mock_provider "cloudflare" {
-  override_during = plan
 }
 
 variables {

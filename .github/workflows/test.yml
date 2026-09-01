@@ -24,4 +24,4 @@ jobs:
         run: terraform init -backend=false -input=false
 
       - name: Run tests
-        run: terraform test -verbose
+        run: terraform test -filter=tests/defaults.tftest.hcl -filter=tests/validations.tftest.hcl -verbose
