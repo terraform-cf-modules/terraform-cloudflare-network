@@ -6,7 +6,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  guard:
+    name: Check PAT availability
+    runs-on: ubuntu-latest
+    outputs:
+      secret_present: ${{ steps.c.outputs.present }}
+    steps:
+      - id: c
+        env:
+          PAT: ${{ secrets.GITHUB }}
+        run: |
+          if [ -n "$PAT" ]; then echo "present=true" >> "$GITHUB_OUTPUT";
+          else echo "present=false" >> "$GITHUB_OUTPUT"; echo "Org PAT not set, skipping."; fi
+
   assignee:
+    needs: guard
+    if: needs.guard.outputs.secret_present == 'true'
     uses: clouddrove/github-shared-workflows/.github/workflows/pr-auto-assignee.yml@v2
     with:
       assignees: 'clouddrove-ci'

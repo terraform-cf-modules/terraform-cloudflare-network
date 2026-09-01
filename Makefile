@@ -1,4 +1,4 @@
-.PHONY: help fmt validate lint docs test security ci clean
+.PHONY: help fmt validate lint docs readme test security ci clean
 
 TF ?= terraform
 DIRS := . ./wrappers $(wildcard ./modules/*) $(wildcard ./examples/*)
@@ -21,11 +21,11 @@ lint: ## Run tflint across the repository
 	tflint --init
 	tflint --recursive --format compact
 
-docs: ## Regenerate the terraform-docs block in README.md
+readme: ## Rebuild README.md from README.yaml, plus docs/io.md and submodule docs
 	@command -v terraform-docs >/dev/null 2>&1 || { echo "terraform-docs is required: https://terraform-docs.io/"; exit 1; }
-	terraform-docs markdown table --output-file README.md --output-mode inject .
-	@for d in $(wildcard ./modules/*) ./wrappers; do \
-		terraform-docs markdown table --output-file README.md --output-mode inject $$d; \
+	python3 scripts/render_readme.py
+
+docs: readme ## Alias for readme, kept for muscle memory
 	done
 
 test: ## Run the mocked terraform tests, no credentials needed

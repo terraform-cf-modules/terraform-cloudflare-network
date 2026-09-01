@@ -1,15 +1,52 @@
 name: readme
 
+# Renders README.md from README.yaml plus docs/io.md from terraform-docs.
+# Uses the built-in GITHUB_TOKEN, so it does not depend on an org PAT.
 on:
   push:
     branches: [main]
     paths-ignore:
-      - 'README.md'
+      - "README.md"
+      - "docs/io.md"
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: readme-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   readme:
-    uses: clouddrove/github-shared-workflows/.github/workflows/readme.yml@v2
-    secrets:
-      TOKEN: ${{ secrets.GITHUB }}
-      SLACK_WEBHOOK_TERRAFORM: ${{ secrets.SLACK_WEBHOOK_TERRAFORM }}
+    name: Rebuild README
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install terraform-docs
+        uses: jaxxstorm/action-install-gh-release@v2
+        with:
+          repo: terraform-docs/terraform-docs
+          tag: v0.24.0
+          cache: enable
+
+      - name: Render
+        run: python3 scripts/render_readme.py
+
+      - name: Commit if changed
+        run: |
+          set -euo pipefail
+          git config user.name  "clouddrove-ci"
+          git config user.email "clouddrove-ci@clouddrove.com"
+          if git diff --quiet; then
+            echo "Documentation already up to date."
+            exit 0
+          fi
+          git add -A
+          git commit -m "docs: rebuild README and terraform-docs output [skip ci]"
+          git push

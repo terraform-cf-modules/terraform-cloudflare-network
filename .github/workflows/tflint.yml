@@ -1,13 +1,38 @@
 name: tf-lint
 
+# Runs tflint across the repository. Uses the built-in GITHUB_TOKEN for plugin
+# downloads, so it does not depend on an org PAT.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  tf-lint:
-    uses: clouddrove/github-shared-workflows/.github/workflows/tf-lint.yml@v2
-    secrets:
-      GITHUB: ${{ secrets.GITHUB }}
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache plugin dir
+        uses: actions/cache@v4
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ hashFiles('.tflint.hcl') }}
+
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.64.0
+          github_token: ${{ github.token }}
+
+      - name: Init
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run
+        run: tflint --recursive --format compact

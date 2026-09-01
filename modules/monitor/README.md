@@ -54,27 +54,6 @@ module "monitor" {
 ```
 
 <!-- BEGIN_TF_DOCS -->
-## Requirements
-
-| Name | Version |
-| ---- | ------- |
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.12.0 |
-| <a name="requirement_cloudflare"></a> [cloudflare](#requirement\_cloudflare) | ~> 5.24 |
-
-## Providers
-
-| Name | Version |
-| ---- | ------- |
-| <a name="provider_cloudflare"></a> [cloudflare](#provider\_cloudflare) | ~> 5.24 |
-
-## Resources
-
-| Name | Type |
-| ---- | ---- |
-| [cloudflare_healthcheck.this](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/healthcheck) | resource |
-| [cloudflare_load_balancer_monitor.this](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/load_balancer_monitor) | resource |
-| [cloudflare_load_balancer_monitor_group.this](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/load_balancer_monitor_group) | resource |
-
 ## Inputs
 
 | Name | Description | Type | Default | Required |

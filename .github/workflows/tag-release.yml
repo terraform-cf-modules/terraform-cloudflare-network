@@ -1,15 +1,83 @@
 name: tag-release
 
+# Tags a release when a pull request merges into main, using Conventional
+# Commit titles to pick the bump. Uses the built-in GITHUB_TOKEN, so publishing
+# does not depend on an org PAT.
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump when run manually"
+        required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+permissions:
+  contents: write
 
 jobs:
-  handle-release:
-    if: github.event.pull_request.merged == true && github.actor != 'dependabot[bot]'
-    uses: clouddrove/github-shared-workflows/.github/workflows/release-tag.yml@v2
-    with:
-      target_branch: ${{ github.event.pull_request.base.ref }}
-      tag_format: "vX.Y.Z"
-    secrets:
-      GITHUB: ${{ secrets.GITHUB }}
+  release:
+    name: Tag and release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true && github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Work out the next version
+        id: ver
+        run: |
+          set -euo pipefail
+          latest=$(git tag -l 'v*.*.*' --sort=-v:refname | head -1)
+          [ -z "$latest" ] && latest="v0.0.0"
+          cur=${latest#v}
+          major=$(echo "$cur" | cut -d. -f1)
+          minor=$(echo "$cur" | cut -d. -f2)
+          patch=$(echo "$cur" | cut -d. -f3)
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bump="${{ github.event.inputs.bump }}"
+          else
+            title=$(printf '%s' "${{ github.event.pull_request.title }}")
+            body=$(printf '%s' "${{ github.event.pull_request.body }}")
+            if printf '%s%s' "$title" "$body" | grep -qE 'BREAKING CHANGE|^[a-z]+(\(.+\))?!:'; then
+              bump=major
+            elif printf '%s' "$title" | grep -qE '^feat(\(.+\))?:'; then
+              bump=minor
+            elif printf '%s' "$title" | grep -qE '^(fix|perf|refactor)(\(.+\))?:'; then
+              bump=patch
+            else
+              echo "Title '$title' is not a releasing type. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          case "$bump" in
+            major) major=$((major+1)); minor=0; patch=0 ;;
+            minor) minor=$((minor+1)); patch=0 ;;
+            patch) patch=$((patch+1)) ;;
+          esac
+          echo "previous=$latest"       >> "$GITHUB_OUTPUT"
+          echo "tag=v$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+          echo "skip=false"            >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and release
+        if: steps.ver.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          git config user.name  "clouddrove-ci"
+          git config user.email "clouddrove-ci@clouddrove.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "$TAG" --generate-notes
+          echo "Released $TAG (previous ${{ steps.ver.outputs.previous }})."

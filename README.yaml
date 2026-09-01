@@ -48,32 +48,60 @@ providers:
 description: |-
   Cloudflare's network layer: load balancing, health checking, Spectrum, the Magic products, and IP addressing.
 
-  The root module builds a working load balancer. It creates the monitors, then the pools that reference them,
-  then the load balancers that steer across those pools, resolving map keys to Cloudflare IDs along the way, so
-  you never hand write an ID that does not exist until apply.
+  The root module builds a working load balancer out of three pieces, created in the order Cloudflare needs them.
+  Monitors define how origins are probed. Pools reference a monitor and hold the origins. Load balancers steer
+  traffic across those pools. That monitor to pool to load balancer wiring is what the root module is for, and
+  every reference along the chain accepts either a map key from this module or a literal Cloudflare ID. A pool
+  can say `monitor = "http"` to point at a key in `var.monitors`, or it can carry the ID of a monitor some other
+  configuration owns. Anything that matches a key is resolved to the created ID, anything else is passed through
+  unchanged, so you never hand write an ID that does not exist until apply. The same rule applies to
+  `default_pools`, `fallback_pool`, `region_pools`, `country_pools`, `pop_pools` and the pool references inside
+  rule overrides.
 
-  Everything else is a standalone building block:
+  Account scope and zone scope are not the same thing here, which is why both IDs are separate inputs.
 
-  | Submodule | Resources |
-  |-----------|-----------|
-  | `monitor` | `cloudflare_load_balancer_monitor`, `cloudflare_load_balancer_monitor_group`, `cloudflare_healthcheck` |
-  | `pool` | `cloudflare_load_balancer_pool` |
-  | `load-balancer` | `cloudflare_load_balancer` |
-  | `spectrum` | `cloudflare_spectrum_application` |
-  | `magic-wan` | `cloudflare_magic_wan_gre_tunnel`, `cloudflare_magic_wan_ipsec_tunnel`, `cloudflare_magic_wan_static_route` |
-  | `magic-transit` | `cloudflare_magic_transit_connector`, `cloudflare_magic_transit_site`, `cloudflare_magic_transit_site_lan`, `cloudflare_magic_transit_site_wan`, `cloudflare_magic_transit_site_acl` |
-  | `addressing` | `cloudflare_byo_ip_prefix`, `cloudflare_address_map` |
-  | `monitoring` | `cloudflare_magic_network_monitoring_configuration`, `cloudflare_magic_network_monitoring_rule` |
+  | Input | Required for |
+  |-------|--------------|
+  | `account_id` | monitors, monitor groups, pools, Magic WAN, Magic Transit, addressing, network monitoring |
+  | `zone_id` | load balancers, standalone health checks, Spectrum applications |
 
-  Pools and monitors are account scoped; load balancers, health checks and Spectrum applications are zone scoped.
-  One pool can therefore back load balancers in several zones.
+  Pools are account scoped even though the load balancer that consumes them is zone scoped, so one set of pools
+  can back load balancers in several zones. `examples/multi-zone-pools` shows that arrangement, and `wrappers/`
+  applies the whole stack once per zone.
 
-  Magic WAN and Magic Transit are enterprise products that Cloudflare has to onboard an account for. Their
-  collections default to empty and `examples/complete` keeps them behind variables that default to `false`, so a
-  passing plan does not imply the products are available.
+  `steering_policy` on a load balancer decides which pool map is actually consulted, which is the setting people
+  most often get wrong.
 
-  See [docs/architecture.md](docs/architecture.md) for the resource map, the steering table, and the provider
-  quirks worth knowing before you start.
+  | Policy | Pools used |
+  |--------|-----------|
+  | `off` (or unset) | `default_pools` in order |
+  | `geo` | `pop_pools`, then `country_pools`, then `region_pools`, falling back to `default_pools` |
+  | `random` | any pool, weighted by `random_steering` |
+  | `dynamic_latency` | closest pool in `default_pools` by round trip time, needs pool health checks |
+  | `proximity` | closest pool by the pool's own latitude and longitude |
+  | `least_outstanding_requests` / `least_connections` | pool with the least load, weighted by `random_steering` |
+
+  Magic WAN and Magic Transit are enterprise products that Cloudflare has to onboard an account for, and Spectrum
+  needs a paid plan. Every collection for them defaults to empty, so they are off unless you ask for them, and
+  `examples/complete` keeps them behind variables that default to `false`. A passing plan therefore does not
+  imply the products are available on your account. This module targets Cloudflare provider v5, which renamed
+  most resources in v5.0.0, so check resource names against the current provider documentation rather than older
+  examples. See [docs/architecture.md](docs/architecture.md) for the full resource map and the provider quirks.
+
+submodules: |-
+  | Submodule | Source | Description |
+  |-----------|--------|-------------|
+  | `monitor` | `terraform-cf-modules/network/cloudflare//modules/monitor` | Health checking: account scoped load balancer monitors and monitor groups, plus the standalone zone level Health Checks product. |
+  | `pool` | `terraform-cf-modules/network/cloudflare//modules/pool` | Origin pools, a named group of origins a load balancer can steer to. Account scoped, so one pool can back load balancers in several zones. |
+  | `load-balancer` | `terraform-cf-modules/network/cloudflare//modules/load-balancer` | Zone scoped load balancer hostnames with their steering policy, session affinity and rules. Pool references here are literal IDs; use the root module to reference pools by key. |
+  | `spectrum` | `terraform-cf-modules/network/cloudflare//modules/spectrum` | Spectrum applications, proxying arbitrary TCP and UDP traffic rather than just HTTP. Paid plans only. |
+  | `magic-wan` | `terraform-cf-modules/network/cloudflare//modules/magic-wan` | Magic WAN GRE tunnels, IPsec tunnels with their pre shared keys, and static routes. Enterprise only, empty by default. |
+  | `magic-transit` | `terraform-cf-modules/network/cloudflare//modules/magic-transit` | Magic Transit site topology: connectors, sites, and the LAN, WAN and ACL objects that hang off a site. Enterprise only, empty by default. |
+  | `addressing` | `terraform-cf-modules/network/cloudflare//modules/addressing` | Bring your own IP prefixes and address maps. |
+  | `monitoring` | `terraform-cf-modules/network/cloudflare//modules/monitoring` | Magic Network Monitoring configuration and its alert rules. |
+
+  The root module composes `monitor`, `pool` and `load-balancer`. The other five are standalone, because nothing
+  else in the product area needs to be wired to them.
 
 usage: |-
   ### A working load balancer
@@ -100,7 +128,7 @@ usage: |-
 
     pools = {
       primary = {
-        monitor = "http"
+        monitor = "http" # a key in var.monitors, resolved to that monitor's ID
 
         origins = {
           origin_a = { address = "192.0.2.10", weight = 1 }
@@ -111,7 +139,7 @@ usage: |-
 
     load_balancers = {
       "www.example.com" = {
-        default_pools = ["primary"]
+        default_pools = ["primary"] # a key in var.pools, resolved to that pool's ID
         fallback_pool = "primary"
         proxied       = true
       }
@@ -120,6 +148,9 @@ usage: |-
   ```
 
   ### Geo steering across two regions
+
+  `steering_policy = "geo"` makes `region_pools` and `country_pools` the pools that matter, with `default_pools`
+  as the fallback for anywhere not listed.
 
   ```hcl
   module "network" {
@@ -173,7 +204,10 @@ usage: |-
   }
   ```
 
-  ### Submodule
+  ### A submodule on its own
+
+  Spectrum has nothing to do with load balancing, so it is used directly. `protocol` is a port specification at
+  Cloudflare's edge, and traffic goes to either `origin_direct` or `origin_dns` plus an origin port.
 
   ```hcl
   module "spectrum" {
@@ -187,42 +221,6 @@ usage: |-
         protocol      = "tcp/22"
         dns           = { type = "CNAME", name = "ssh.example.com" }
         origin_direct = ["tcp://192.0.2.10:22"]
-      }
-    }
-  }
-  ```
-
-  ### Wrapper for many zones
-
-  ```hcl
-  module "many" {
-    source = "terraform-cf-modules/network/cloudflare//wrappers"
-
-    defaults = {
-      account_id = var.account_id
-
-      monitors = {
-        http = { type = "http", path = "/healthz" }
-      }
-    }
-
-    items = {
-      example_com = {
-        zone_id = var.example_com_zone_id
-
-        pools = {
-          primary = {
-            monitor = "http"
-            origins = { a = { address = "192.0.2.10" } }
-          }
-        }
-
-        load_balancers = {
-          "www.example.com" = {
-            default_pools = ["primary"]
-            fallback_pool = "primary"
-          }
-        }
       }
     }
   }
