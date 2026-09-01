@@ -151,7 +151,7 @@ def terraform_docs() -> None:
 # Render
 # --------------------------------------------------------------------------
 
-BANNER = "https://clouddrove.s3.ca-central-1.amazonaws.com/Logo/banner.png"
+BANNER = "https://clouddrove.s3.ca-central-1.amazonaws.com/img/clouddrove-github-cover.png"
 
 
 def render(cfg: dict) -> str:
@@ -162,7 +162,7 @@ def render(cfg: dict) -> str:
         "<!-- This file was automatically generated from `README.yaml`. "
         "Make all changes to `README.yaml` and run `make readme` to rebuild this file. -->",
         "<p align=\"center\">",
-        f"  <img width=\"1024\" height=\"250\" alt=\"CloudDrove\" src=\"{BANNER}\" />",
+        f"  <img width=\"1000\" alt=\"CloudDrove Banner\" src=\"{BANNER}\" />",
         "</p>",
         "<h1 align=\"center\">",
         f"    {name}",
