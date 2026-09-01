@@ -29,11 +29,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install terraform-docs
-        uses: jaxxstorm/action-install-gh-release@v2
-        with:
-          repo: terraform-docs/terraform-docs
-          tag: v0.24.0
-          cache: enable
+        run: |
+          set -euo pipefail
+          VER=v0.24.0
+          curl -sSLo /tmp/tfdocs.tar.gz \
+            "https://terraform-docs.io/dl/${VER}/terraform-docs-${VER}-linux-amd64.tar.gz"
+          tar -xzf /tmp/tfdocs.tar.gz -C /tmp terraform-docs
+          sudo install -m 0755 /tmp/terraform-docs /usr/local/bin/terraform-docs
+          terraform-docs --version
 
       - name: Render
         run: python3 scripts/render_readme.py
