@@ -32,6 +32,13 @@ jobs:
 
       - name: Work out the next version
         id: ver
+        # PR title and body are attacker-controlled text: pass them through env,
+        # never expand them inside the script.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_BUMP: ${{ github.event.inputs.bump }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
           latest=$(git tag -l 'v*.*.*' --sort=-v:refname | head -1)
@@ -41,11 +48,11 @@ jobs:
           minor=$(echo "$cur" | cut -d. -f2)
           patch=$(echo "$cur" | cut -d. -f3)
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            bump="${{ github.event.inputs.bump }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            bump="$DISPATCH_BUMP"
           else
-            title=$(printf '%s' "${{ github.event.pull_request.title }}")
-            body=$(printf '%s' "${{ github.event.pull_request.body }}")
+            title="$PR_TITLE"
+            body="$PR_BODY"
             if printf '%s%s' "$title" "$body" | grep -qE 'BREAKING CHANGE|^[a-z]+(\(.+\))?!:'; then
               bump=major
             elif printf '%s' "$title" | grep -qE '^feat(\(.+\))?:'; then
